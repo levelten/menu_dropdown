@@ -1,0 +1,103 @@
+<?php
+
+/**
+ * Preprocess function for menu
+ */
+function menu_dropdown_preprocess_page(&$variables) {
+  if (theme_get_setting('toggle_main_menu')) {
+    switch(theme_get_setting('menu_dropdown_type')) {
+      case 0:
+        $variables['main_menu'] = menu_main_menu();
+        break;
+      case 1:
+        $tree = menu_tree_all_data('main-menu');
+        // And add the active trail data back to the full tree.
+        menu_dropdown_tree_add_active_path($tree);
+
+        // Allow alteration of the tree and config before we begin operations on it.
+        drupal_alter('menu_dropdown_tree', $tree);
+
+        // Localize the tree.
+        if (module_exists('i18nmenu')) {
+          i18nmenu_localize_tree($tree);
+        }
+        dpm(menu_main_menu());
+        dpm($tree);
+        $variables['main_menu'] = $tree;
+        break;
+      case 2:
+        $variables['main_menu'] = menu_main_menu();
+        break;
+    }
+  } else {
+    $variables['main_menu'] = array();
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function menu_dropdown_form_system_theme_settings_alter(&$form, &$form_state) {
+  $form['menu_dropdown'] = array(
+    '#title' => 'Menu Dropdown',
+    '#type' => 'fieldset',
+    '#description' => 'Select the type of menu to display in the main menu',
+  );
+  $form['menu_dropdown']['menu_dropdown_type'] = array(
+    '#title' => 'Menu Type',
+    '#type' => 'radios',
+    '#options' => array(
+      0 => 'Single Line',
+      1 => 'Drop Down Menu',
+      2 => 'Mega Menu',
+    ),
+    // Need a better way to get theme name but isn't passed into form_alter.
+    '#default_value' => theme_get_setting('menu_dropdown_type', arg(3)),
+  );
+}
+
+/**
+ * Add the active trail indicators into the tree.
+ *
+ * The data returned by menu_tree_page_data() has link['in_active_trail'] set to
+ * TRUE for each menu item in the active trail. The data returned from
+ * menu_tree_all_data() does not contain the active trail indicators. This is a
+ * helper function that adds it back in.
+ *
+ * @param $tree
+ *   array The menu tree.
+ * @return
+ *   void
+ */
+function menu_dropdown_tree_add_active_path(&$tree) {
+  // Grab any menu item to find the menu_name for this tree.
+  $menu_item = current($tree);
+  $tree_with_trail = menu_tree_page_data($menu_item['link']['menu_name']);
+
+  // To traverse the original tree down the active trail, we use a pointer.
+  $subtree_pointer =& $tree;
+
+  // Find each key in the active trail.
+  while ($tree_with_trail) {
+    foreach ($tree_with_trail AS $key => &$value) {
+      if ($tree_with_trail[$key]['link']['in_active_trail']) {
+        // Set the active trail info in the original tree.
+        $subtree_pointer[$key]['link']['in_active_trail'] = TRUE;
+        // Continue in the subtree, if it exists.
+        $tree_with_trail =& $tree_with_trail[$key]['below'];
+        $subtree_pointer =& $subtree_pointer[$key]['below'];
+        break;
+      }
+      else {
+        unset($tree_with_trail[$key]);
+      }
+    }
+  }
+}
+
+if (!function_exists('phptemplate_links__system_main_menu')) {
+  function phptemplate_links__system_main_menu($variables) {
+    dpm('here');
+    return theme_links($variables);
+  }
+}

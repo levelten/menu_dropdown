@@ -1,0 +1,5 @@
+name = Menu Dropdown
+description = Change the way that the main menu works by adding a dropdown and mega menu option.
+core = 7.x
+dependencies[] = menu
+
